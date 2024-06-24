@@ -1,0 +1,331 @@
+import tkinter as tk
+from tkinter import messagebox
+from tkinter import scrolledtext
+import matplotlib.pyplot as plt
+
+def convert():
+    holes = []
+    processes = []
+
+    def add_hole():
+        size = int(Holesizeval.get())
+        if size <= 0:
+            messagebox.showerror("Error", "Invalid holesize entered! Only positive holesize is allowed")
+            return
+        holes.append(size)
+        Holesizeval.delete(0, tk.END)
+        UpdateHoleval()
+
+    def add_process():
+        name = PnameEntry.get()
+        memory = int(MemreqEntry.get())
+        if memory <= 0:
+            messagebox.showerror("Error", "Invalid process memory size! Only positive process memory should be entered.")
+            return
+        processes.append((name, memory))
+        PnameEntry.delete(0, tk.END)
+        MemreqEntry.delete(0, tk.END)
+        update_processes_entry()
+
+    def update_hole():
+        index = int(UpdateHoleindex.get())
+        new_size = int(UpdateHoleVal_index.get())
+        if index < 1 or index > len(holes):
+            messagebox.showerror("Error", "Invalid hole index entered!")
+            return
+        if new_size <= 0:
+            messagebox.showerror("Error", "Invalid hole size entered! Only positive size is allowed.")
+            return
+        holes[index - 1] = new_size
+        UpdateHoleval()
+
+    def update_process():
+        index = int(UpdateProcessindex.get())
+        new_size = int(UpdateProcessVal_index.get())
+        if index < 1 or index > len(processes):
+            messagebox.showerror("Error", "Invalid process index entered!")
+            return
+        if new_size <= 0:
+            messagebox.showerror("Error", "Invalid process size entered! Only positive size is allowed.")
+            return
+        processes[index - 1] = (processes[index - 1][0], new_size)
+        update_processes_entry()
+
+    def add_hole():
+        size = int(Holesizeval.get())
+        if size <= 0:
+            messagebox.showerror("Error", "Invalid holesize entered! Only positive holesize is allowed")
+            return
+        holes.append(size)
+        Holesizeval.delete(0, tk.END)
+        UpdateHoleval()
+
+    def add_process():
+        name = PnameEntry.get()
+        memory = int(MemreqEntry.get())
+        if memory <= 0:
+            messagebox.showerror("Error", "Invalid process memory size! Only positive process memory should be entered.")
+            return
+        processes.append((name, memory))
+        PnameEntry.delete(0, tk.END)
+        MemreqEntry.delete(0, tk.END)
+        update_processes_entry()
+
+    def UpdateHoleval():
+        holes_entry.delete(1.0, tk.END)
+        for i, size in enumerate(holes, start=1):
+            holes_entry.insert(tk.END, f"Hole {i}: {size}\n")
+
+    def update_processes_entry():
+        processes_entry.delete(1.0, tk.END)
+        for i, (name, memory) in enumerate(processes, start=1):
+            processes_entry.insert(tk.END, f"Process {i}: {name} - Memory: {memory}\n")
+
+    def first_fit():
+        memory_blocks = holes.copy()
+        allocations = {hole: [] for hole in holes}
+        left_processes = []
+        for Pname, memreq in processes:
+            allocated = False
+            for i, block_size in enumerate(memory_blocks):
+                if memreq <= block_size:
+                    memory_blocks[i] -= memreq
+                    allocations[holes[i]].append(Pname)
+                    allocated = True
+                    break
+            if not allocated:
+                left_processes.append(Pname)
+        return allocations, left_processes, memory_blocks
+
+    def next_fit():
+        memory_blocks = holes.copy()
+        allocations = {hole: [] for hole in holes}
+        left_processes = []
+        previd = 0
+        for Pname, memreq in processes:
+            allocated = False
+            for i in range(previd, len(memory_blocks)):
+                if memreq <= memory_blocks[i]:
+                    memory_blocks[i] -= memreq
+                    allocations[holes[i]].append(Pname)
+                    previd = i
+                    allocated = True
+                    break
+            if not allocated:
+                for i in range(len(memory_blocks)):
+                    if memreq <= memory_blocks[i]:
+                        memory_blocks[i] -= memreq
+                        allocations[holes[i]].append(Pname)
+                        previd = i
+                        allocated = True
+                        break
+            if not allocated:
+                left_processes.append(Pname)
+        return allocations, left_processes, memory_blocks
+
+    def best_fit():
+        memory_blocks = holes.copy()
+        allocations = {hole: [] for hole in holes}
+        left_processes = []
+        for Pname, memreq in processes:
+            best_fit_index = -1
+            for i, block_size in enumerate(memory_blocks):
+                if memreq <= block_size:
+                    if (
+                        best_fit_index == -1
+                        or block_size < memory_blocks[best_fit_index]
+                    ):
+                        best_fit_index = i
+            if best_fit_index != -1:
+                memory_blocks[best_fit_index] -= memreq
+                allocations[holes[best_fit_index]].append(Pname)
+            else:
+                left_processes.append(Pname)
+        return allocations, left_processes, memory_blocks
+
+    def worst_fit():
+        memory_blocks = holes.copy()
+        allocations = {hole: [] for hole in holes}
+        left_processes = []
+        for Pname, memreq in processes:
+            worst_fit_index = -1
+            for i, block_size in enumerate(memory_blocks):
+                if memreq <= block_size:
+                    if (
+                        worst_fit_index == -1
+                        or block_size > memory_blocks[worst_fit_index]
+                    ):
+                        worst_fit_index = i
+            if worst_fit_index != -1:
+                memory_blocks[worst_fit_index] -= memreq
+                allocations[holes[worst_fit_index]].append(Pname)
+            else:
+                left_processes.append(Pname)
+        return allocations, left_processes, memory_blocks
+
+    def update_results(allocations, left_processes, remaining_holes):
+        if not allocations:
+            messagebox.showinfo("Info", "No memory allocation performed.")
+            return
+
+        min_hole_size = min(holes)
+        max_hole_size = max(holes)
+
+        result_label.config(
+            text=f"Minhole size: {min_hole_size}\nMaxhole size: {max_hole_size}"
+        )
+        result_text.insert(tk.END, f"First Fit Algorithm\n")
+        for hole, processes in allocations.items():
+            if processes:
+                result_text.insert(tk.END, f"{hole}: {' | '.join(processes)}\n")
+            else:
+                result_text.insert(tk.END, f"{hole}: -\n")
+        result_text.insert(tk.END, f"Processes allocated memory:{sum(len(processes) for processes in allocations.values())}\n")  
+        if left_processes:
+            result_text.insert(tk.END, "Processes left for memory allocation:\n")
+            for process in left_processes:
+                result_text.insert(tk.END, f"{process}\n")
+        max_hole = max(remaining_holes)
+        min_hole = min(remaining_holes)
+        result_text.insert(tk.END, f"Minhole_Size:{min_hole}\n")
+        result_text.insert(tk.END, f"Maxhole_Size:{max_hole}\n")
+        analyze_algorithm()
+
+    def perform_algorithm(algorithm):
+        if not holes or not processes:
+            messagebox.showerror("Error", "Please enter holes and processes first.")
+            return
+
+        if algorithm == "First Fit":
+            return first_fit()
+        elif algorithm == "Next Fit":
+            return next_fit()
+        elif algorithm == "Best Fit":
+            return best_fit()
+        elif algorithm == "Worst Fit":
+            return worst_fit()
+
+    def analyze_algorithm():
+        best_algorithm = ""
+        best_minhole_size = float("inf")
+        best_maxhole_size = 0
+        best_allocated_processes = 0
+        for algorithm in ["First Fit", "Next Fit", "Best Fit", "Worst Fit"]:
+            allocations, _, remaining_holes = perform_algorithm(algorithm)
+            minhole_size = min(remaining_holes)
+            maxhole_size = max(remaining_holes)
+            allocated_processes = sum(
+                len(processes) for processes in allocations.values()
+            )
+
+            if allocated_processes >= best_allocated_processes:
+                best_algorithm = algorithm
+                best_minhole_size = minhole_size
+                best_maxhole_size = maxhole_size
+                best_allocated_processes = allocated_processes
+
+        best_algorithm_label.config(
+            text=f"Best suited algorithm: {best_algorithm}\nMinhole size: {best_minhole_size}\nMaxhole size: {best_maxhole_size}\nNumber of processes allocated memory: {best_allocated_processes}"
+        )
+
+    def plot_graph():
+        algorithms = ["First Fit", "Next Fit", "Best Fit", "Worst Fit"]
+        fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+        for i, algorithm in enumerate(algorithms):
+            allocations, _, remaining_holes = perform_algorithm(algorithm)
+            axs[i // 2, i % 2].bar(
+                range(len(remaining_holes)),
+                remaining_holes,
+                tick_label=[f"Hole {i+1}" for i in range(len(remaining_holes))],
+            )
+            axs[i // 2, i % 2].set_xlabel("Hole")
+            axs[i // 2, i % 2].set_ylabel("Remaining Size")
+            axs[i // 2, i % 2].set_title(f"Memory Holes After Allocation - {algorithm}")
+            for j, hole_size in enumerate(remaining_holes):
+                axs[i // 2, i % 2].text(
+                    j, hole_size, str(hole_size), ha="center", va="bottom"
+                )
+        plt.tight_layout()
+        plt.show()
+
+    def show_results():
+        algorithm = algorithm_var.get()
+        allocations, left_processes, remaining_holes = perform_algorithm(algorithm)
+        update_results(allocations, left_processes, remaining_holes)
+
+    root = tk.Tk()
+    root.title("Memory Management Simulation")
+    hole_label = tk.Label(root, text="Enter the size of the holes:")
+    hole_label.pack()
+    Holesizeval = tk.Entry(root)
+    Holesizeval.pack()
+    add_hole_button = tk.Button(root, text="Add Hole", command=add_hole)
+    add_hole_button.pack()
+    holes_entry = scrolledtext.ScrolledText(root, height=5, width=50)
+    holes_entry.pack()
+
+    process_label = tk.Label(root, text="Enter the process name and memory required:")
+    process_label.pack()
+    PnameEntry = tk.Entry(root)
+    PnameEntry.pack()
+    MemreqEntry = tk.Entry(root)
+    MemreqEntry.pack()
+    add_process_button = tk.Button(root, text="Add Process", command=add_process)
+    add_process_button.pack()
+    processes_entry = scrolledtext.ScrolledText(root, height=5, width=50)
+    processes_entry.pack()
+
+    update_hole_frame = tk.Frame(root)
+    update_hole_frame.pack()
+    update_hole_index_label = tk.Label(update_hole_frame, text="Enter hole index to update:")
+    update_hole_index_label.pack(side=tk.LEFT)
+    UpdateHoleindex = tk.Entry(update_hole_frame)
+    UpdateHoleindex.pack(side=tk.LEFT)
+    update_hole_size_label = tk.Label(update_hole_frame, text="Enter new hole size:")
+    update_hole_size_label.pack(side=tk.LEFT)
+    UpdateHoleVal_index = tk.Entry(update_hole_frame)
+    UpdateHoleVal_index.pack(side=tk.LEFT)
+    update_hole_button = tk.Button(update_hole_frame, text="Update Hole", command=update_hole)
+    update_hole_button.pack(side=tk.LEFT)
+
+    update_process_frame = tk.Frame(root)
+    update_process_frame.pack()
+    update_process_index_label = tk.Label(update_process_frame, text="Enter process index to update:")
+    update_process_index_label.pack(side=tk.LEFT)
+    UpdateProcessindex = tk.Entry(update_process_frame)
+    UpdateProcessindex.pack(side=tk.LEFT)
+    update_process_size_label = tk.Label(update_process_frame, text="Enter new process size:")
+    update_process_size_label.pack(side=tk.LEFT)
+    UpdateProcessVal_index = tk.Entry(update_process_frame)
+    UpdateProcessVal_index.pack(side=tk.LEFT)
+    update_process_button = tk.Button(update_process_frame, text="Update Process", command=update_process)
+    update_process_button.pack(side=tk.LEFT)
+
+    algorithm_var = tk.StringVar()
+    algorithm_var.set("First Fit")
+    algorithm_label = tk.Label(root, text="Select the memory management algorithm:")
+    algorithm_label.pack()
+    algorithm_option_menu = tk.OptionMenu(
+        root, algorithm_var, "First Fit", "Next Fit", "Best Fit", "Worst Fit"
+    )
+    algorithm_option_menu.pack()
+
+    show_results_button = tk.Button(root, text="Show Results", command= show_results)
+    show_results_button.pack()
+
+    result_label = tk.Label(root, text="Results:")
+    result_label.pack()
+    result_text = scrolledtext.ScrolledText(root, height=20, width=50)
+    result_text.pack()
+
+    best_algorithm_label = tk.Label(root, text="")
+    best_algorithm_label.pack()
+
+    plot_graph_button = tk.Button(
+        root, text="Plot Memory Holes After Allocation", command=plot_graph
+    )
+    plot_graph_button.pack()
+
+    root.mainloop()
+
+convert()
